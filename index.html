@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="RecruitMapper: candidate screening that uses vector embeddings to surface who's worth your time. Empirically tested against real hiring outcomes. No hype." />
+  <title>RecruitMapper: Candidate Screening Without the Guesswork</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0f1e;
+      --surface:   #111827;
+      --border:    #1f2a40;
+      --accent:    #6366f1;
+      --accent-lo: #312e81;
+      --accent-hi: #818cf8;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --green:     #10b981;
+      --radius:    12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(10,15,30,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em;
+      color: var(--text); text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent-hi); }
+    nav a.cta-btn {
+      font-size: 0.875rem; font-weight: 600;
+      padding: 0.5rem 1.25rem;
+      background: var(--accent);
+      color: #fff; text-decoration: none;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    nav a.cta-btn:hover { background: var(--accent-hi); }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 8rem 1.5rem 4rem;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(99,102,241,0.18) 0%, transparent 70%),
+        var(--bg);
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.9rem;
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.35);
+      border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600; color: var(--accent-hi);
+      margin-bottom: 1.75rem; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .badge::before { content: "\25CF"; font-size: 0.5rem; color: var(--green); }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.5rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -0.03em;
+      max-width: 780px;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 em { font-style: normal; color: var(--accent-hi); }
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--muted); max-width: 560px;
+      margin-bottom: 2.5rem;
+    }
+    .hero-actions {
+      display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    }
+    .btn-primary {
+      display: inline-block;
+      padding: 0.85rem 2rem; font-size: 1rem; font-weight: 700;
+      background: var(--accent); color: #fff; text-decoration: none;
+      border-radius: var(--radius);
+      box-shadow: 0 0 30px rgba(99,102,241,0.35);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hi);
+      box-shadow: 0 0 40px rgba(129,140,248,0.5);
+    }
+    .btn-secondary {
+      display: inline-block;
+      padding: 0.85rem 2rem; font-size: 1rem; font-weight: 600;
+      background: transparent; color: var(--text); text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent-hi); color: var(--accent-hi); }
+
+    /* SECTIONS */
+    section { padding: 6rem 1.5rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent-hi);
+      margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .section-sub {
+      font-size: 1.05rem; color: var(--muted); max-width: 660px;
+      margin-bottom: 3.5rem;
+    }
+
+    /* HOW IT WORKS */
+    #how { background: var(--surface); }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+    .step {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 1.5rem;
+    }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2rem; height: 2rem; border-radius: 50%;
+      background: var(--accent-lo); color: var(--accent-hi);
+      font-size: 0.8rem; font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    .step h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .step p  { font-size: 0.9rem; color: var(--muted); }
+
+    /* FEATURES */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: var(--accent); }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 1rem; }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature-card p  { font-size: 0.9rem; color: var(--muted); }
+
+    /* PROOF */
+    #proof {
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 50%, rgba(99,102,241,0.12) 0%, transparent 70%),
+        var(--surface);
+    }
+    .empirical-banner {
+      background: linear-gradient(135deg, var(--accent-lo), rgba(49,46,129,0.4));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: var(--radius);
+      padding: 2.5rem 2rem;
+      display: flex; gap: 1.5rem; align-items: flex-start;
+      max-width: 900px; margin: 0 auto 3rem;
+    }
+    .empirical-banner .icon { font-size: 2rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .empirical-banner h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .empirical-banner p  { font-size: 0.95rem; color: var(--muted); }
+    .stats {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 3rem;
+    }
+    .stat { text-align: center; }
+    .stat .number {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 800; letter-spacing: -0.03em;
+      color: var(--accent-hi);
+    }
+    .stat .label { font-size: 0.9rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* PRIVACY */
+    #privacy { background: var(--bg); }
+    .privacy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+    .privacy-item {
+      display: flex; gap: 1rem; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .privacy-item .icon { font-size: 1.5rem; flex-shrink: 0; }
+    .privacy-item h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .privacy-item p  { font-size: 0.85rem; color: var(--muted); }
+
+    /* CTA */
+    #cta {
+      background:
+        radial-gradient(ellipse 60% 80% at 50% 100%, rgba(99,102,241,0.22) 0%, transparent 65%),
+        var(--bg);
+      text-align: center;
+    }
+    #cta h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1rem; }
+    #cta p  { font-size: 1.05rem; color: var(--muted); margin-bottom: 2.5rem; }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    footer strong { color: var(--text); }
+
+    @media (max-width: 600px) {
+      nav { padding: 0.85rem 1.25rem; }
+      .empirical-banner { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="nav-logo" href="#">Recruit<span>Mapper</span></a>
+    <a class="cta-btn" href="#cta">Contact Sales</a>
+  </nav>
+
+  <section class="hero">
+    <div class="badge">Empirically Tested &middot; Honest About What It Does</div>
+    <h1>Stop reading every CV.<br /><em>Let the maths tell you who to read first.</em></h1>
+    <p>RecruitMapper ranks your candidate list by fit against your ideal profile. It uses vector embeddings to do it, a technique that is genuinely good at comparing meaning across text. You still do the hiring. We just cut down the pile.</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="#cta">Contact Sales</a>
+      <a class="btn-secondary" href="#how">See How It Works</a>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="container">
+      <p class="section-label">How It Works</p>
+      <h2 class="section-title">Three inputs. One ranked list.</h2>
+      <p class="section-sub">No magic, no black box. Here is exactly what happens to your data.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Upload your LinkedIn export</h3>
+          <p>A standard LinkedIn Recruiter CSV. No reformatting, no cleaning. We parse it as-is and extract what is useful.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Describe what you are looking for</h3>
+          <p>Upload a PDF of your ideal candidate profile and project context. We read it, structure it, and turn it into the reference point everything else gets measured against.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>We find and read their GitHub</h3>
+          <p>Where a GitHub account exists (or can be reliably inferred), we pull real activity: commits, pull requests, code reviews, languages used over time.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <h3>You get a ranked list, not a decision</h3>
+          <p>Each candidate gets a score from 0&ndash;100 with a per-dimension breakdown. You decide who to call. The tool does not pretend to do that part.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="container">
+      <p class="section-label">What It Actually Does</p>
+      <h2 class="section-title">Specific tools for a specific problem</h2>
+      <p class="section-sub">Built for one job: sorting a candidate list by how well each person fits a role. Nothing more.</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">&#128269;</div>
+          <h3>GitHub profile discovery</h3>
+          <p>Most candidates do not link their GitHub on LinkedIn. We use name, company, and location heuristics to find and verify the right account via the GitHub API.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128202;</div>
+          <h3>Actual coding activity, not vanity metrics</h3>
+          <p>Commit history, pull requests opened and reviewed, issues filed, languages used consistently over time. Stars and follower counts tell you very little about what an engineer actually does day to day.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128208;</div>
+          <h3>Vector embeddings, not keyword matching</h3>
+          <p>We embed your ideal profile and each candidate's background into the same high-dimensional vector space, then measure cosine similarity. It is a well-understood technique that is genuinely good at capturing meaning across text.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9878;</div>
+          <h3>You control what matters for this role</h3>
+          <p>Domain expertise is not the same weight as soft skills for every position. Eight scoring dimensions. Experience, skills, domain fit, context alignment, achievements, weaknesses, and more, each independently adjustable.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9889;</div>
+          <h3>Concurrent processing</h3>
+          <p>All API calls run in parallel batches. A list of a few hundred candidates takes a few minutes, not an afternoon. No queue, no waiting room.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <h3>No database, nothing stored</h3>
+          <p>Everything is processed in memory and discarded when the session ends. There is simply nowhere for the data to live.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="proof">
+    <div class="container">
+      <div class="empirical-banner">
+        <div class="icon">&#129514;</div>
+        <div>
+          <h3>Tested against real hiring outcomes</h3>
+          <p>We did not just build something that looked reasonable on paper. The scoring weights were tuned against actual recruiting decisions. When the tool ranked someone highly and a recruiter independently agreed they were worth a call, we noted it. When it did not, we adjusted. The rankings are meaningfully better than a random order, and we can show you the reasoning behind that.</p>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="number">0&ndash;100</div>
+          <div class="label">Fit score per candidate, with a breakdown you can inspect</div>
+        </div>
+        <div class="stat">
+          <div class="number">12</div>
+          <div class="label">Scoring dimensions, each independently weighted by you</div>
+        </div>
+        <div class="stat">
+          <div class="number">0</div>
+          <div class="label">Bytes of candidate data retained after analysis</div>
+        </div>
+        <div class="stat">
+          <div class="number">100%</div>
+          <div class="label">Opted out of third-party model training</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="container">
+      <p class="section-label">Privacy</p>
+      <h2 class="section-title">We do not keep your data</h2>
+      <p class="section-sub">Not a privacy policy promise. A consequence of the architecture.</p>
+      <div class="privacy-grid">
+        <div class="privacy-item">
+          <div class="icon">&#128465;</div>
+          <div>
+            <h4>There is no database</h4>
+            <p>Candidate data lives in memory for the duration of the analysis and is gone when the session ends. We cannot leak what we do not store.</p>
+          </div>
+        </div>
+        <div class="privacy-item">
+          <div class="icon">&#128683;</div>
+          <div>
+            <h4>Not used to train anything</h4>
+            <p>We are fully opted out of third-party AI provider training. Your candidates' data does not improve any model, ours or anyone else's.</p>
+          </div>
+        </div>
+        <div class="privacy-item">
+          <div class="icon">&#128272;</div>
+          <div>
+            <h4>Sessions are independent</h4>
+            <p>Each run is isolated. Nothing from a previous analysis is available to the next one. There is no cross-session state on the server.</p>
+          </div>
+        </div>
+        <div class="privacy-item">
+          <div class="icon">&#9729;</div>
+          <div>
+            <h4>Deployed on AWS ECS Fargate</h4>
+            <p>Serverless containers with no persistent compute state between requests. Scales with load, leaves no footprint.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="cta">
+    <div class="container">
+      <h2>Want to try it on a real list?</h2>
+      <a class="btn-primary" href="mailto:kacper.rzadkowski@knowit.no?subject=RecruitMapper">Contact Sales</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2026 <strong>RecruitMapper</strong></p>
+  </footer>
+
+</body>
+</html>
